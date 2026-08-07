@@ -1,0 +1,32 @@
+{
+  "retrieval": {
+    "tool": "NCBI Datasets CLI",
+    "command": "datasets summary genome taxon 374 --as-json-lines --assembly-version current > data/raw/bradyrhizobium_genome_summary.jsonl",
+    "tool_version_used": "18.33.1",
+    "tool_version_available_at_time_of_run": "18.34.0",
+    "taxon_scientific_name": "Bradyrhizobium",
+    "taxon_id": 374,
+    "assembly_version_scope": "current",
+    "retrieved_by": "damvunam",
+    "retrieval_timestamp_local": "2026-08-07T14:44:07+0700",
+    "retrieval_timezone": "Asia/Bangkok",
+    "timestamp_source": "File mtime of data/raw/bradyrhizobium_genome_summary.jsonl, confirmed via `date -r`"
+  },
+  "raw_file": {
+    "path": "data/raw/bradyrhizobium_genome_summary.jsonl",
+    "size_bytes": 15848237,
+    "sha256": "004063c0c363924e6747f9e0b62df16dc57fc6d3109944d99c3f12775bffc98b",
+    "git_tracked": false,
+    "note": "Excluded from git via .gitignore; integrity tracked here via checksum."
+  },
+  "empirical_counts": {
+    "total_primary_records": 4087,
+    "distinct_accessions": 4087,
+    "source_database_counts": {
+      "SOURCE_DATABASE_REFSEQ": 1876,
+      "SOURCE_DATABASE_GENBANK": 2211
+    },
+    "records_with_paired_accession": 3756,
+    "records_without_paired_accession": 331
+  }
+}
