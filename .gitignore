@@ -1,0 +1,12 @@
+# Raw NCBI snapshot is kept locally only (not git-tracked).
+# Its checksum, size, timestamp, and retrieval command are recorded in
+# data/metadata/retrieval_manifest.json instead.
+data/raw/
+
+# Standard Python/OS noise
+__pycache__/
+*.pyc
+.DS_Store
+
+# Virtual environment
+.venv/
