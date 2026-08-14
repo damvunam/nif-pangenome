@@ -54,9 +54,5 @@
     "raw_sha256": "004063c0c363924e6747f9e0b62df16dc57fc6d3109944d99c3f12775bffc98b",
     "assembly_summary_sha256": "ddab51be3afcdaeb6cf4cd50ab205798b9a3e16241dc98f0f8f1c4e5a64c67db",
     "policy_sha256": "ad28cb500b1d6acb168f3b023d8976d33e229952c926ec0654df67790c379a8d"
-  },
-  "outputs": {
-    "audit_tsv": "data/metadata/bradyrhizobium_metadata_qc.tsv",
-    "summary_json": "reports/task2_metadata_qc_summary.json"
   }
 }

@@ -104,6 +104,84 @@ class MetadataQCCLITests(unittest.TestCase):
             self.assertNotEqual(0, second.returncode)
             self.assertFalse(audit.exists(), "Preflight must prevent a partial TSV write.")
 
+    def test_report_is_independent_of_output_location(self) -> None:
+        record = {
+            "accession": "GCA_000000001.1",
+            "source_database": "SOURCE_DATABASE_GENBANK",
+            "organism": {"organism_name": "Bradyrhizobium test", "tax_id": 374},
+            "assembly_info": {
+                "assembly_level": "Contig",
+                "assembly_status": "current",
+            },
+            "assembly_stats": {
+                "total_sequence_length": 8_000_000,
+                "gc_percent": 63.5,
+                "number_of_contigs": 20,
+                "contig_n50": 200_000,
+            },
+        }
+        summary_fields = [
+            "canonical_id",
+            "representative_accession",
+            "gcf_accession",
+            "gca_accession",
+            "pair_status",
+            "missing_partner_accession",
+        ]
+        summary_row = {
+            "canonical_id": "CANON_00001",
+            "representative_accession": "GCA_000000001.1",
+            "gcf_accession": "",
+            "gca_accession": "GCA_000000001.1",
+            "pair_status": "unpaired",
+            "missing_partner_accession": "",
+        }
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw = root / "raw.jsonl"
+            summary = root / "summary.tsv"
+            raw.write_text(json.dumps(record) + "\n", encoding="utf-8")
+            with summary.open("w", newline="", encoding="utf-8") as handle:
+                writer = csv.DictWriter(
+                    handle, fieldnames=summary_fields, delimiter="\t", lineterminator="\n"
+                )
+                writer.writeheader()
+                writer.writerow(summary_row)
+
+            reports = []
+            audits = []
+            for output_directory in (root / "first", root / "second"):
+                output_directory.mkdir()
+                audit = output_directory / "audit.tsv"
+                report = output_directory / "report.json"
+                completed = subprocess.run(
+                    [
+                        sys.executable,
+                        str(SCRIPT),
+                        "--raw-path",
+                        str(raw),
+                        "--summary-path",
+                        str(summary),
+                        "--policy-path",
+                        str(POLICY),
+                        "--audit-output",
+                        str(audit),
+                        "--report-output",
+                        str(report),
+                    ],
+                    cwd=REPOSITORY_ROOT,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+                self.assertEqual(0, completed.returncode, completed.stderr)
+                audits.append(audit.read_bytes())
+                reports.append(report.read_bytes())
+
+            self.assertEqual(audits[0], audits[1])
+            self.assertEqual(reports[0], reports[1])
+
 
 if __name__ == "__main__":
     unittest.main()

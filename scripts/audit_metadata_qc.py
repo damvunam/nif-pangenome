@@ -29,15 +29,6 @@ DEFAULT_AUDIT_OUTPUT = (
 DEFAULT_REPORT_OUTPUT = REPOSITORY_ROOT / "reports/task2_metadata_qc_summary.json"
 
 
-def portable_path(path: Path) -> str:
-    """Return a repository-relative path when possible."""
-    resolved = path.resolve()
-    try:
-        return resolved.relative_to(REPOSITORY_ROOT.resolve()).as_posix()
-    except ValueError:
-        return str(resolved)
-
-
 def preflight_outputs(paths: Sequence[Path], *, overwrite: bool) -> None:
     """Reject conflicting outputs before either artifact is written."""
     if overwrite:
@@ -76,10 +67,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         "raw_sha256": sha256_file(args.raw_path),
         "assembly_summary_sha256": sha256_file(args.summary_path),
         "policy_sha256": sha256_file(args.policy_path),
-    }
-    report["outputs"] = {
-        "audit_tsv": portable_path(args.audit_output),
-        "summary_json": portable_path(args.report_output),
     }
     preflight_outputs(
         [args.audit_output, args.report_output], overwrite=args.overwrite
