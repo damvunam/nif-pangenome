@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "policy_id": "nif-pangenome-metadata-qc-v1",
+  "audit_scope": "metadata_only",
+  "final_qc_completed": false,
+  "input_counts": {
+    "canonical_assemblies": 2211,
+    "raw_accession_records": 4087
+  },
+  "selection_reason_counts": {
+    "broken_pair_current_genbank": 4,
+    "current_genbank_singleton": 331,
+    "current_refseq_preferred": 1818,
+    "fallback_current_genbank": 58
+  },
+  "metadata_decision_counts": {
+    "manual_review": 104,
+    "retain_candidate": 2107
+  },
+  "pangenome_contiguity_counts": {
+    "primary_contiguity_candidate": 1891,
+    "secondary_fragmented": 320
+  },
+  "synteny_class_counts": {
+    "presence_absence_only": 527,
+    "synteny_candidate": 1684
+  },
+  "flag_counts": {
+    "broken_pair": 4,
+    "gc_percent_outlier": 36,
+    "genome_size_outlier": 72,
+    "missing_gc_percent": 4,
+    "pangenome_fragmented": 320,
+    "suppressed_or_unavailable_refseq_fallback": 58,
+    "synteny_fragmented": 527
+  },
+  "robust_baselines": {
+    "genome_size_bp": {
+      "median": 8358211.0,
+      "mad": 861624.0
+    },
+    "gc_percent": {
+      "median": 63.5,
+      "mad": 0.5
+    },
+    "modified_z_threshold": 3.5
+  },
+  "pending_steps": [
+    "CheckM2",
+    "GUNC",
+    "GTDB-Tk_and_ANI_review"
+  ],
+  "input_fingerprints": {
+    "raw_sha256": "004063c0c363924e6747f9e0b62df16dc57fc6d3109944d99c3f12775bffc98b",
+    "assembly_summary_sha256": "ddab51be3afcdaeb6cf4cd50ab205798b9a3e16241dc98f0f8f1c4e5a64c67db",
+    "policy_sha256": "ad28cb500b1d6acb168f3b023d8976d33e229952c926ec0654df67790c379a8d"
+  },
+  "outputs": {
+    "audit_tsv": "data/metadata/bradyrhizobium_metadata_qc.tsv",
+    "summary_json": "reports/task2_metadata_qc_summary.json"
+  }
+}

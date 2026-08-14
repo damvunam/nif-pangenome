@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "policy_id": "nif-pangenome-metadata-qc-v1",
+  "scope": "Bradyrhizobium canonical physical assemblies",
+  "current_status_values": [
+    "current",
+    "latest"
+  ],
+  "representative_selection": {
+    "prefer_current_refseq": true,
+    "fallback_to_current_genbank": true,
+    "exclude_when_no_current_member": true
+  },
+  "metadata_contiguity": {
+    "pangenome_max_contigs": 500,
+    "pangenome_min_contig_n50_bp": 20000,
+    "synteny_max_contigs": 200,
+    "synteny_min_contig_n50_bp": 50000
+  },
+  "robust_outlier_detection": {
+    "method": "modified_z_score",
+    "threshold": 3.5,
+    "fields": [
+      "genome_size_bp",
+      "gc_percent"
+    ],
+    "automatic_exclusion": false
+  },
+  "future_sequence_qc": {
+    "primary_min_completeness_percent": 95.0,
+    "primary_max_contamination_percent": 5.0,
+    "secondary_min_completeness_percent": 90.0,
+    "secondary_max_contamination_percent": 10.0,
+    "gunc_failure_requires_manual_review": true
+  },
+  "future_taxonomy_qc": {
+    "target_genus": "Bradyrhizobium",
+    "classification_method": "GTDB-Tk and ANI/manual verification",
+    "automatic_exclusion": false
+  },
+  "references": [
+    {
+      "citation": "Bowers et al. 2017",
+      "doi": "10.1038/nbt.3893",
+      "url": "https://www.nature.com/articles/nbt.3893"
+    },
+    {
+      "citation": "Chklovski et al. 2023",
+      "doi": "10.1038/s41592-023-01940-w",
+      "url": "https://www.nature.com/articles/s41592-023-01940-w"
+    },
+    {
+      "citation": "Gurevich et al. 2013",
+      "doi": "10.1093/bioinformatics/btt086",
+      "url": "https://academic.oup.com/bioinformatics/article/29/8/1072/228832"
+    },
+    {
+      "citation": "Tonkin-Hill et al. 2020",
+      "doi": "10.1186/s13059-020-02090-4",
+      "url": "https://doi.org/10.1186/s13059-020-02090-4"
+    },
+    {
+      "citation": "Orakov et al. 2021",
+      "doi": "10.1186/s13059-021-02393-0",
+      "url": "https://doi.org/10.1186/s13059-021-02393-0"
+    },
+    {
+      "citation": "NCBI assembly versioning and status",
+      "url": "https://www.ncbi.nlm.nih.gov/datasets/docs/v2/data-processing/policies-annotation/genome-processing/version-status/"
+    }
+  ]
+}
