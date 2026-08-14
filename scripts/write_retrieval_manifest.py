@@ -1,85 +1,160 @@
-"""
-Writes data/metadata/retrieval_manifest.json documenting the raw NCBI
-genome summary retrieval for Bradyrhizobium (TaxID 374).
+"""Recompute raw-file integrity and empirical counts in a retrieval manifest.
 
-All values here are either:
-  - the literal command executed,
-  - directly measured from the retrieved file (size, checksum, line count),
-  - or counts computed from the file's own content (record/pair statistics).
-Nothing here is copied from prior/unverified reports.
+Retrieval provenance is preserved from an existing manifest because timestamps,
+tool versions, and operator identity cannot be reconstructed from raw content.
 """
-import json
+
+from __future__ import annotations
+
+import argparse
 import hashlib
+import json
 import os
+import tempfile
+from collections.abc import Mapping, Sequence
+from pathlib import Path
+from typing import Any
 
-RAW_PATH = "data/raw/bradyrhizobium_genome_summary.jsonl"
-MANIFEST_PATH = "data/metadata/retrieval_manifest.json"
 
-def sha256sum(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_RAW_PATH = REPOSITORY_ROOT / "data/raw/bradyrhizobium_genome_summary.jsonl"
+DEFAULT_MANIFEST_PATH = REPOSITORY_ROOT / "data/metadata/retrieval_manifest.json"
 
-def main():
-    size_bytes = os.path.getsize(RAW_PATH)
-    checksum = sha256sum(RAW_PATH)
 
-    with open(RAW_PATH) as f:
-        lines = f.readlines()
-    total_records = len(lines)
+class ManifestError(ValueError):
+    """Raised when a manifest or raw snapshot violates the data contract."""
 
-    records = [json.loads(l) for l in lines]
-    accessions = [r.get("accession") for r in records]
-    distinct_accessions = len(set(accessions))
 
-    source_counts = {}
-    for r in records:
-        sd = r.get("source_database", "MISSING")
-        source_counts[sd] = source_counts.get(sd, 0) + 1
+def sha256sum(path: Path) -> str:
+    """Return the SHA-256 digest of a file."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
-    paired_count = sum(1 for r in records if r.get("paired_accession"))
-    unpaired_count = total_records - paired_count
 
-    manifest = {
-        "retrieval": {
-            "tool": "NCBI Datasets CLI",
-            "command": (
-                "datasets summary genome taxon 374 "
-                "--as-json-lines --assembly-version current "
-                "> data/raw/bradyrhizobium_genome_summary.jsonl"
-            ),
-            "tool_version_used": "18.33.1",
-            "tool_version_available_at_time_of_run": "18.34.0",
-            "taxon_scientific_name": "Bradyrhizobium",
-            "taxon_id": 374,
-            "assembly_version_scope": "current",
-            "retrieved_by": "damvunam",
-            "retrieval_timestamp_local": "2026-08-07T14:43 (Asia/Ho_Chi_Minh, unconfirmed timezone offset — file mtime based)",
-            "note_on_timestamp": "Timestamp derived from file mtime reported by `ls -la` at retrieval time; not independently verified against system clock/timezone."
-        },
+def load_records(raw_path: Path) -> list[dict[str, Any]]:
+    """Read JSON Lines records and reject duplicates or malformed accessions."""
+    records: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    with raw_path.open(encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            if not line.strip():
+                raise ManifestError(f"Blank JSONL record at line {line_number}.")
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ManifestError(
+                    f"Invalid JSON at line {line_number}: {exc.msg}."
+                ) from exc
+            if not isinstance(record, dict):
+                raise ManifestError(f"Record at line {line_number} is not an object.")
+            accession = record.get("accession")
+            if not isinstance(accession, str) or not accession:
+                raise ManifestError(f"Missing accession at line {line_number}.")
+            if accession in seen:
+                raise ManifestError(f"Duplicate accession {accession!r}.")
+            seen.add(accession)
+            records.append(record)
+    if not records:
+        raise ManifestError(f"No records found in {raw_path}.")
+    return records
+
+
+def build_manifest(
+    raw_path: Path,
+    records: Sequence[Mapping[str, Any]],
+    retrieval: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Build content-derived manifest fields while preserving retrieval facts."""
+    source_counts: dict[str, int] = {}
+    for record in records:
+        source = str(record.get("source_database", "MISSING"))
+        source_counts[source] = source_counts.get(source, 0) + 1
+    paired_count = sum(bool(record.get("paired_accession")) for record in records)
+    return {
+        "retrieval": dict(retrieval),
         "raw_file": {
-            "path": RAW_PATH,
-            "size_bytes": size_bytes,
-            "sha256": checksum,
+            "path": "data/raw/bradyrhizobium_genome_summary.jsonl",
+            "size_bytes": raw_path.stat().st_size,
+            "sha256": sha256sum(raw_path),
             "git_tracked": False,
-            "note": "Excluded from git via .gitignore; integrity tracked here via checksum."
+            "note": "Excluded from git via .gitignore; integrity tracked here via checksum.",
         },
         "empirical_counts": {
-            "total_primary_records": total_records,
-            "distinct_accessions": distinct_accessions,
+            "total_primary_records": len(records),
+            "distinct_accessions": len({record["accession"] for record in records}),
             "source_database_counts": source_counts,
             "records_with_paired_accession": paired_count,
-            "records_without_paired_accession": unpaired_count
-        }
+            "records_without_paired_accession": len(records) - paired_count,
+        },
     }
 
-    with open(MANIFEST_PATH, "w") as f:
-        json.dump(manifest, f, indent=2)
 
-    print(f"Manifest written to {MANIFEST_PATH}")
+def load_retrieval_provenance(path: Path) -> Mapping[str, Any]:
+    """Load the non-reconstructable retrieval section from a prior manifest."""
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ManifestError(f"Cannot read provenance manifest {path}: {exc}.") from exc
+    retrieval = manifest.get("retrieval") if isinstance(manifest, dict) else None
+    if not isinstance(retrieval, dict) or not retrieval:
+        raise ManifestError(f"Manifest {path} has no retrieval provenance section.")
+    return retrieval
+
+
+def write_manifest(manifest: Mapping[str, Any], path: Path, *, overwrite: bool) -> None:
+    """Write the manifest atomically and refuse silent replacement."""
+    if path.exists() and not overwrite:
+        raise FileExistsError(f"Output already exists: {path}. Use --overwrite explicitly.")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary_path = Path(handle.name)
+            json.dump(manifest, handle, indent=2)
+            handle.write("\n")
+        os.replace(temporary_path, path)
+        temporary_path = None
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--raw-path", type=Path, default=DEFAULT_RAW_PATH)
+    parser.add_argument("--output-path", type=Path, default=DEFAULT_MANIFEST_PATH)
+    parser.add_argument(
+        "--provenance-from",
+        type=Path,
+        default=DEFAULT_MANIFEST_PATH,
+        help="Existing manifest whose retrieval section will be preserved.",
+    )
+    parser.add_argument("--overwrite", action="store_true")
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Recompute and safely write the retrieval manifest."""
+    args = parse_args(argv)
+    retrieval = load_retrieval_provenance(args.provenance_from)
+    records = load_records(args.raw_path)
+    manifest = build_manifest(args.raw_path, records, retrieval)
+    write_manifest(manifest, args.output_path, overwrite=args.overwrite)
+    print(f"Manifest written to {args.output_path}")
     print(json.dumps(manifest, indent=2))
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
